@@ -1,0 +1,4 @@
+# Файл CLANG-FORMAT, созданный Visual Studio
+Language: Cpp
+BasedOnStyle: LLVM
+ColumnLimit: 160

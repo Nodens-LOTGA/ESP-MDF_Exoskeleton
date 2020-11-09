@@ -1,0 +1,16 @@
+menu "Exoskeleton Screen Configuration"
+    menu "Mesh Configuration"
+    config MESH_ID
+        string "Mesh ID"
+        default "123456"
+        help
+            Mesh network identification, Nodes with the same mesh ID can
+            communicate with each other.
+
+    config MESH_PASSWORD
+        string "Mesh Password"
+        default "12345678"
+        help
+            Mesh AP password. Password length must be 8 bits smaller than 64 bits,Set to null to not encrypt
+    endmenu
+endmenu
