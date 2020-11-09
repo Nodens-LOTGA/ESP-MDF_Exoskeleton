@@ -1,0 +1,46 @@
+{
+  "C_Cpp.clang_format_style": "file",
+  "editor.formatOnSave": false,
+  "[cpp]": {
+    "editor.quickSuggestions": true
+  },
+  "[c]": {
+    "editor.quickSuggestions": true
+  },
+  "C_Cpp.intelliSenseEngineFallback": "Enabled",
+  "files.associations": {
+    "uart.h": "c",
+    "*.ipp": "c",
+    "ostream": "c",
+    "*.tcc": "c",
+    "array": "c",
+    "vector": "c",
+    "xstring": "c",
+    "xutility": "c",
+    "string": "c",
+    "string_view": "c",
+    "bitset": "c",
+    "deque": "c",
+    "initializer_list": "c",
+    "list": "c",
+    "queue": "c",
+    "random": "c",
+    "type_traits": "c",
+    "xhash": "c",
+    "xtree": "c",
+    "utility": "c",
+    "math.h": "c",
+    "rtc_io.h": "c",
+    "sdmmc_cmd.h": "c",
+    "gpio.h": "c",
+    "esp_vfs_fat.h": "c",
+    "esp_camera.h": "c",
+    "ios": "c",
+    "esp_system.h": "c",
+    "mdf_common.h": "c",
+    "*.inc": "c",
+    "sstream": "c",
+    "strstream": "c"
+  },
+  "idf.portWin": "COM6"
+}
