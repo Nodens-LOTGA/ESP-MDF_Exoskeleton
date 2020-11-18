@@ -7,7 +7,7 @@
 #include "../../exosk.h"
 #include "nmea_parser.h"
 
-#define MAKE_JSON_ON_ROOT
+//#define MAKE_JSON_ON_ROOT
 
 #define YEAR_BASE 2000
 
@@ -41,6 +41,8 @@ static const char uart_recive_data[] = "data=";
 static const char spi_data[] = "hr=%hhu;steps=%hu;";
 
 static sensors_data_t sensors_data;
+static gps_data_t gps_data;
+static band_data_t band_data;
 
 #define JSON_FORMAT_ARGS(x, mac)                                                                                                                               \
   MAC2STR(mac), x.exosk_id, x.screen_sensors_data.temperature, x.screen_sensors_data.illumination, x.screen_sensors_data.co, x.screen_sensors_data.co2,        \
@@ -218,7 +220,7 @@ void udp_client_write_task(void *arg) {
       d = (sensors_data_t *)data;
       udp_size = snprintf(udp_data, udp_size, json_format, JSON_FORMAT_ARGS((*d), src_addr));
       MDF_LOGI("UDP json from data write, size: %d, data: %s", udp_size, udp_data);
-#elif
+#else
       MDF_LOGI("UDP data write, size: %d, data:", udp_size);
       esp_log_buffer_hex(TAG, udp_data, udp_size);
 #endif
@@ -295,14 +297,14 @@ static void gps_event_handler(void *event_handler_arg, esp_event_base_t event_ba
              "\t\t\t\t\t\tspeed      = %fm/s",
              gps->date.year + YEAR_BASE, gps->date.month, gps->date.day, gps->tim.hour + board_config.time_zone, gps->tim.minute, gps->tim.second,
              gps->latitude, gps->longitude, gps->altitude, gps->speed);
-    sensors_data.gps_data.latitude = gps->altitude;
-    sensors_data.gps_data.longitude = gps->longitude;
-    sensors_data.gps_data.day = gps->date.day;
-    sensors_data.gps_data.month = gps->date.month;
-    sensors_data.gps_data.year = gps->date.year;
-    sensors_data.gps_data.hour = gps->tim.hour + board_config.time_zone;
-    sensors_data.gps_data.minute = gps->tim.minute;
-    sensors_data.gps_data.second = gps->tim.second;
+    gps_data.latitude = gps->altitude;
+    gps_data.longitude = gps->longitude;
+    gps_data.day = gps->date.day;
+    gps_data.month = gps->date.month;
+    gps_data.year = gps->date.year;
+    gps_data.hour = gps->tim.hour + board_config.time_zone;
+    gps_data.minute = gps->tim.minute;
+    gps_data.second = gps->tim.second;
     break;
   case GPS_UNKNOWN:
     ESP_LOGW(TAG, "Unknown statement:%s", (char *)event_data);
@@ -438,7 +440,7 @@ static void node_read_task(void *arg) {
     memset(data, 0, MWIFI_PAYLOAD_LEN);
     ret = mwifi_read(src_addr, &data_type, data, &size, portMAX_DELAY);
     MDF_ERROR_CONTINUE(ret != MDF_OK, "<%s> mwifi_read", mdf_err_to_name(ret));
-    MDF_LOGD("Node receive: " MACSTR ", size: %d, data: %s", MAC2STR(src_addr), size, data);
+    MDF_LOGI("Node receive: " MACSTR ", size: %d, data: %s", MAC2STR(src_addr), size, data);
     memcpy(&exosk_data_type, &data_type.custom, sizeof(data_type.custom));
     if (exosk_data_type.format == EXOSK_WIFI_FORMAT_JSON) {
       exosk_data_type.exosk_id = board_config.exosk_id;
@@ -494,11 +496,11 @@ static void node_write_task(void *arg) {
     }
     memset(buffer, 0, 2 * MWIFI_PAYLOAD_LEN);
     len = sprintf(buffer, "gps=");
-    memcpy(buffer + len, &sensors_data.gps_data, sizeof(gps_data_t));
+    memcpy(buffer + len, &gps_data, sizeof(gps_data_t));
     len += sizeof(gps_data_t);
     buffer[len++] = ';';
     len += sprintf(buffer + len, "band=");
-    memcpy(buffer + len, &sensors_data.band_data, sizeof(band_data_t));
+    memcpy(buffer + len, &band_data, sizeof(band_data_t));
     len += sizeof(band_data_t);
     buffer[len++] = ';';
     send_to_stm32(buffer, len);
@@ -521,7 +523,7 @@ static void node_write_task(void *arg) {
       esp_log_buffer_hex(TAG, (char *)&sensors_data, len);
       ret = mwifi_write(NULL, &data_type, &sensors_data, len, true);
       MDF_ERROR_CONTINUE(ret != MDF_OK, "<%s> mwifi_write", mdf_err_to_name(ret));
-#elif
+#else
       exosk_data_type.format = EXOSK_WIFI_FORMAT_JSON;
       memcpy(&data_type.custom, &exosk_data_type, sizeof(data_type.custom));
       len = snprintf(buffer, 2 * MWIFI_PAYLOAD_LEN, json_format, JSON_FORMAT_ARGS(sensors_data, sta_mac));
@@ -544,8 +546,8 @@ static void rpi_task(void *arg) {
   spi_slave_transaction_t t = {0};
   while (1) {
     memset(recvbuf, 0, 32);
-    sprintf(sendbuf, "%04hu-%02hhu-%02hhuT%02hhu:%02hhu:%02hhu;", sensors_data.gps_data.year, sensors_data.gps_data.month, sensors_data.gps_data.day,
-            sensors_data.gps_data.hour, sensors_data.gps_data.minute, sensors_data.gps_data.second);
+    sprintf(sendbuf, "%04hu-%02hhu-%02hhuT%02hhu:%02hhu:%02hhu;", gps_data.year, gps_data.month, gps_data.day,
+            gps_data.hour, gps_data.minute, gps_data.second);
     memset(&t, 0, sizeof(t));
     t.length = 32 * 8;
     t.tx_buffer = sendbuf;
@@ -555,8 +557,8 @@ static void rpi_task(void *arg) {
     ESP_LOGI(TAG, "HEX:");
     esp_log_buffer_hex(TAG, recvbuf, 32);
 
-    if (sscanf(recvbuf, spi_data, &sensors_data.band_data.heart_rate, &sensors_data.band_data.num_of_step) == 2) {
-      ESP_LOGI(TAG, "RPI: Recive Data: HR %hhu, Steps %hu", sensors_data.band_data.heart_rate, sensors_data.band_data.num_of_step);
+    if (sscanf(recvbuf, spi_data, &band_data.heart_rate, &band_data.num_of_step) == 2) {
+      ESP_LOGI(TAG, "RPI: Recive Data: HR %hhu, Steps %hu", band_data.heart_rate, band_data.num_of_step);
     }
     vTaskDelay(100 / portTICK_RATE_MS);
   }

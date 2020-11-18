@@ -124,8 +124,8 @@ mac=a4:cf:12:26:01:cd
 
 ### Отправка информации на экран
 
-- Температура, °C: `"global.temperature.txt=\"%f\""`
-- Освещённость, лк: `"global.illumination.txt=\"%d\""`
+- Температура, °C: `"global.temperature.txt=\"%.1f\""`
+- Освещённость, лк: `"global.illumination.txt=\"%.1f\""`
 - Концентрация газов, ppm:
   - `"global.co.txt=\"%d\""`
   - `"global.co2.txt=\"%d\""`
@@ -135,8 +135,8 @@ mac=a4:cf:12:26:01:cd
 - Атмосферное давление, мм.рт.ст: `"global.atmo_pressure.txt=\"%d\""`
 - Тепловое излучение, : `"global.t_radiation.txt=\"%d\""`
 - Дым, : `"global.smoke.txt=\"%d\""`
-- Вес груза, кг: `"global.cargo_weight.txt=\"%f\""`
-- Вес оператор, кг: `"global.op_weight.txt=\"%f\""`
+- Вес груза, кг: `"global.cargo_weight.txt=\"%.1f\""`
+- Вес оператор, кг: `"global.op_weight.txt=\"%.1f\""`
 - Остаточный заряд аккумулятора, у.е.: `"global.battery_charge.txt=\"%d\""`
 
 ## Общение по UART ESP32(*E*) и STM32(*S*) экзоскелета

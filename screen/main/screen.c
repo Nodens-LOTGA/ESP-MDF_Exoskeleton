@@ -47,14 +47,14 @@ static const char uart_send_ssid[] = "global.ssid_number.txt=\"%s\"";
 static const char uart_send_pass[] = "global.pass_number.txt=\"%s\"";
 static const char uart_send_exosk_id[] = "global.exosk_id.txt=\"%hu\"";
 
-static const char uart_recive_mac[] = "mac=%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx;";
-static const char uart_recive_ssid[] = "ssid=%s;";
-static const char uart_recive_pass[] = "pass=%s;";
-static const char uart_recive_reboot[] = "reboot;";
-static const char uart_recive_erase_config[] = "erase_config;";
+static const char uart_recive_mac[] = "mac=%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx";
+static const char uart_recive_ssid[] = "ssid=%s";
+static const char uart_recive_pass[] = "pass=%s";
+static const char uart_recive_reboot[] = "reboot";
+static const char uart_recive_erase_config[] = "erase_config";
 
-static const char uart_data_temperature[] = "global.temperature.txt=\"%f\"";
-static const char uart_data_illumination[] = "global.illumination.txt=\"%d\"";
+static const char uart_data_temperature[] = "global.temperature.txt=\"%.1f\"";
+static const char uart_data_illumination[] = "global.illumination.txt=\"%.1f\"";
 static const char uart_data_co[] = "global.co.txt=\"%d\"";
 static const char uart_data_co2[] = "global.co2.txt=\"%d\"";
 static const char uart_data_ch4[] = "global.ch4.txt=\"%d\"";
@@ -63,8 +63,8 @@ static const char uart_data_humidity[] = "global.humidity.txt=\"%d\"";
 static const char uart_data_atmo_pressure[] = "global.atmo_pressure.txt=\"%d\"";
 static const char uart_data_t_radiation[] = "global.t_radiation.txt=\"%d\"";
 static const char uart_data_smoke[] = "global.smoke.txt=\"%d\"";
-static const char uart_data_op_weight[] = "global.human_weight.txt=\"%f\"";
-static const char uart_data_cargo_weight[] = "global.cargo_weight.txt=\"%f\"";
+static const char uart_data_op_weight[] = "global.op_weight.txt=\"%.1f\"";
+static const char uart_data_cargo_weight[] = "global.cargo_weight.txt=\"%.1f\"";
 static const char uart_data_battery_charge[] = "global.battery_charge.txt=\"%d\"";
 
 static screen_sensors_data_t sensors_data;
@@ -274,7 +274,7 @@ static void init_uart(void) {
   }
   ESP_LOGI(TAG, "Router SSID: %s", screen_config.router_ssid);
   ESP_LOGI(TAG, "Router Password: %s", screen_config.router_password);
-  ESP_LOGI(TAG, "Parent MAC: \"" MACSTR "\"", MAC2STR(screen_config.parent_mac));
+  ESP_LOGI(TAG, "Parent MAC: " MACSTR, MAC2STR(screen_config.parent_mac));
   MDF_FREE(buffer);
   MDF_FREE(msg);
 }
@@ -299,6 +299,7 @@ static void uart_event_task(void *arg) {
         while (ptkn != NULL) {
           memset(msg, 0, MSG_BUFFER_SIZE);
           strcpy(msg, ptkn);
+          ESP_LOGI(TAG, "Token: %s", msg);
           if (strcmp(msg, EXOSK_CALIBRATE_STRAIN_ZERO) == 0 || sscanf(msg, EXOSK_CALIBRATE_STRAIN_REFERENCE, &ref_weight) == 1)
             xQueueSend(node_write_queue, msg, portMAX_DELAY);
           else if (sscanf(msg, uart_recive_mac, &screen_config.parent_mac[0], &screen_config.parent_mac[1], &screen_config.parent_mac[2],
@@ -370,10 +371,10 @@ static void node_read_task(void *arg) {
     MDF_LOGD("Type: %d, Format: %d", exosk_data_type.type, exosk_data_type.format);
     MDF_LOGD("Parent MAC: " MACSTR, MAC2STR(screen_config.parent_mac));
     if (memcmp(src_addr, screen_config.parent_mac, MWIFI_ADDR_LEN) == 0) {
-      MDF_LOGD("Parent found");
       if (exosk_data_type.type == EXOSK_WIFI_TYPE_BOARD) {
         if (exosk_data_type.format == EXOSK_WIFI_FORMAT_JSON) {
-          if (strcmp(data, "my_id") == 0) {
+          if (strcmp(data, EXOSK_TO_SCREEN_RESPONSE) == 0) {
+            MDF_LOGD("Parent found");
             screen_config.exosk_id = exosk_data_type.exosk_id;
             ESP_LOGI(TAG, "Exoskeleton ID: %d", screen_config.exosk_id);
             parent_responded = true;
@@ -389,7 +390,7 @@ static void node_read_task(void *arg) {
             send_to_screen(buffer, len);
           }
         } else if (exosk_data_type.format == EXOSK_WIFI_FORMAT_DATA) {
-          memcpy(&sensors_data, buffer, sizeof(sensors_data));
+          memcpy(&sensors_data, data, sizeof(sensors_data));
           send_data_to_screen();
         }
       }
@@ -412,7 +413,7 @@ static void node_write_task(void *arg) {
   uint8_t sta_mac[MWIFI_ADDR_LEN] = {0};
   uint8_t attempts = 1;
 
-  node_write_queue = xQueueCreate(MSG_BUFFER_SIZE, sizeof(char));
+  node_write_queue = xQueueCreate(1, MSG_BUFFER_SIZE * sizeof(char));
 
   MDF_LOGI("Node task is running");
 
@@ -423,17 +424,20 @@ static void node_write_task(void *arg) {
       continue;
     }
     if (parent_responded) {
+      memset(buffer, 0, MSG_BUFFER_SIZE);
       if (xQueueReceive(node_write_queue, buffer, 500 / portTICK_RATE_MS)) {
         exosk_data_type.exosk_id = screen_config.exosk_id;
         exosk_data_type.format = EXOSK_WIFI_FORMAT_JSON;
         exosk_data_type.data = 0;
+        len = strlen(buffer);
+        MDF_LOGD("Node send, size: %d, data: %s", len, buffer);
         ret = mwifi_write(screen_config.parent_mac, &data_type, buffer, len, true);
         if (ret != MDF_OK)
           parent_responded = false;
         MDF_ERROR_CONTINUE(ret != MDF_OK, "<%s> mwifi_write", mdf_err_to_name(ret));
       }
     } else {
-      len = sprintf(buffer, "screen_req");
+      len = sprintf(buffer, EXOSK_SCREEN_REQUEST);
       MDF_LOGD("Node send, size: %d, data: %s", len, buffer);
       exosk_data_type.format = EXOSK_WIFI_FORMAT_JSON;
       memcpy(&data_type.custom, &exosk_data_type, sizeof(data_type.custom));
@@ -497,7 +501,7 @@ void app_main(void) {
   init_uart();
   init_mesh();
 
-  xTaskCreate(uart_event_task, "uart_event_task", 4 * 1024, NULL, CONFIG_MDF_TASK_DEFAULT_PRIOTY - 1, NULL);
+  xTaskCreate(uart_event_task, "uart_event_task", 4 * 1024, NULL, CONFIG_MDF_TASK_DEFAULT_PRIOTY + 1, NULL);
   xTaskCreate(node_write_task, "node_write_task", 16 * 1024, NULL, CONFIG_MDF_TASK_DEFAULT_PRIOTY, NULL);
   xTaskCreate(node_read_task, "node_read_task", 4 * 1024, NULL, CONFIG_MDF_TASK_DEFAULT_PRIOTY, NULL);
 

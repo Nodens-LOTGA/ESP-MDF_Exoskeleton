@@ -7,8 +7,8 @@
 #define EXOSK_TO_CAM_RESPONSE "my_id;"
 #define EXOSK_SCREEN_REQUEST "screen_req;"
 #define EXOSK_TO_SCREEN_RESPONSE "my_id;"
-#define EXOSK_CALIBRATE_STRAIN_ZERO "calibrate_strain_zero;"
-#define EXOSK_CALIBRATE_STRAIN_REFERENCE "calibrate_strain_reference=%f;"
+#define EXOSK_CALIBRATE_STRAIN_ZERO "calibrate_strain_zero"
+#define EXOSK_CALIBRATE_STRAIN_REFERENCE "calibrate_strain_reference=%f"
 #define EXOSK_SCREEN_EXISTS_ERROR "screen_exists;"
 
 typedef enum { EXOSK_WIFI_TYPE_BOARD = 0, EXOSK_WIFI_TYPE_CAM, EXOSK_WIFI_TYPE_SCREEN } exosk_wifi_type_t;

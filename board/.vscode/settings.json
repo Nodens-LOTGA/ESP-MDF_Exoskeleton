@@ -36,7 +36,7 @@
     "ostream": "c",
     "*.tcc": "c"
   },
-  "idf.portWin": "COM6",
+  "idf.portWin": "COM7",
   "cSpell.words": [
     "Band",
     "Raspberry",
